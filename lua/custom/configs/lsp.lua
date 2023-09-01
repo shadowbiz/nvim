@@ -2,28 +2,98 @@ vim.o.completeopt = "menuone,noinsert,noselect"
 -- Avoid showing extra messages when using completion
 vim.opt.shortmess = vim.opt.shortmess + "c"
 
+
+require('nvim-treesitter.configs').setup {
+  -- Add languages to be installed here that you want installed for treesitter
+  ensure_installed = { 'lua', 'python', 'rust', 'tsx', 'javascript', 'typescript', 'vimdoc', 'vim', 'css' },
+
+  -- Autoinstall languages that are not installed. Defaults to false (but you can change for yourself!)
+  auto_install = false,
+
+  highlight = { enable = true },
+  indent = { enable = true },
+  incremental_selection = {
+    enable = true,
+    keymaps = {
+      init_selection = '<c-space>',
+      node_incremental = '<c-space>',
+      scope_incremental = '<c-s>',
+      node_decremental = '<M-space>',
+    },
+  },
+  textobjects = {
+    select = {
+      enable = true,
+      lookahead = true, -- Automatically jump forward to textobj, similar to targets.vim
+      keymaps = {
+        -- You can use the capture groups defined in textobjects.scm
+        ['aa'] = '@parameter.outer',
+        ['ia'] = '@parameter.inner',
+        ['af'] = '@function.outer',
+        ['if'] = '@function.inner',
+        ['ac'] = '@class.outer',
+        ['ic'] = '@class.inner',
+      },
+    },
+    move = {
+      enable = true,
+      set_jumps = true, -- whether to set jumps in the jumplist
+      goto_next_start = {
+        [']m'] = '@function.outer',
+        [']]'] = '@class.outer',
+      },
+      goto_next_end = {
+        [']M'] = '@function.outer',
+        [']['] = '@class.outer',
+      },
+      goto_previous_start = {
+        ['[m'] = '@function.outer',
+        ['[['] = '@class.outer',
+      },
+      goto_previous_end = {
+        ['[M'] = '@function.outer',
+        ['[]'] = '@class.outer',
+      },
+    },
+    swap = { },
+  },
+}
+
+
 -- IMPORTANT: make sure to setup neodev BEFORE lspconfig
 require("neodev").setup({
   -- add any options here, or leave empty to use the default settings
 })
 
-function on_attach(client, buffer)
-  local keymap_opts = { buffer = buffer }
-  -- Hover actions
-  vim.keymap.set("n", "<C-space>", rt.hover_actions.hover_actions, { buffer = buffer, desc = {"Hover actions"}})
-  -- Code action groups
-  vim.keymap.set("n", "<Leader>a", rt.code_action_group.code_action_group, { buffer = buffer, desc = {"Code action"}})
-  -- Code navigation and shortcuts
-  vim.keymap.set("n", "<c-]>", vim.lsp.buf.definition, keymap_opts)
-  vim.keymap.set("n", "K", vim.lsp.buf.hover, keymap_opts)
-  vim.keymap.set("n", "gD", vim.lsp.buf.implementation, keymap_opts)
-  vim.keymap.set("n", "<c-k>", vim.lsp.buf.signature_help, keymap_opts)
-  vim.keymap.set("n", "1gD", vim.lsp.buf.type_definition, keymap_opts)
-  vim.keymap.set("n", "gr", vim.lsp.buf.references, keymap_opts)
-  vim.keymap.set("n", "g0", vim.lsp.buf.document_symbol, keymap_opts)
-  vim.keymap.set("n", "gW", vim.lsp.buf.workspace_symbol, keymap_opts)
-  vim.keymap.set("n", "gd", vim.lsp.buf.definition, { buffer = buffer, desc = {"Go to defenition"}})
+-- Diagnostic keymaps
+vim.keymap.set('n', '[d', vim.diagnostic.goto_prev, { desc = 'Go to previous diagnostic message' })
+vim.keymap.set('n', ']d', vim.diagnostic.goto_next, { desc = 'Go to next diagnostic message' })
+vim.keymap.set('n', '<leader>e', vim.diagnostic.open_float, { desc = 'Open floating diagnostic message' })
+vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagnostics list' })
 
+function on_attach(client, buffer)
+
+  local nmap = function(keys, func, desc)
+    if desc then
+      desc = 'LSP: ' .. desc
+    end
+
+    vim.keymap.set('n', keys, func, { buffer = bufnr, desc = desc })
+  end
+
+  nmap('<leader>rn', vim.lsp.buf.rename, 'Rename')
+  nmap('<leader>a', vim.lsp.buf.code_action, 'Code Action')
+
+  nmap('gd', vim.lsp.buf.definition, 'Goto Definition')
+  nmap('gr', require('telescope.builtin').lsp_references, 'Goto References')
+  nmap('gI', vim.lsp.buf.implementation, 'Goto Implementation')
+  nmap('<leader>D', vim.lsp.buf.type_definition, 'Type Definition')
+  nmap('<leader>ds', require('telescope.builtin').lsp_document_symbols, 'Document Symbols')
+  nmap('<leader>ws', require('telescope.builtin').lsp_dynamic_workspace_symbols, 'Workspace Symbols')
+
+  nmap('K', vim.lsp.buf.hover, 'Hover Documentation')
+  nmap('<C-k>', vim.lsp.buf.signature_help, 'Signature Documentation')
+  
   vim.opt.updatetime = 100
   -- Show diagnostic popup on cursor hover
   local diag_float_grp = vim.api.nvim_create_augroup("DiagnosticFloat", { clear = true })
@@ -35,19 +105,51 @@ function on_attach(client, buffer)
   })
 
   -- Goto previous/next diagnostic warning/error
-  vim.keymap.set("n", "g[", vim.diagnostic.goto_prev, keymap_opts)
-  vim.keymap.set("n", "g]", vim.diagnostic.goto_next, keymap_opts)
+  nmap("n", "g[", vim.diagnostic.goto_prev, keymap_opts)
+  nmap("n", "g]", vim.diagnostic.goto_next, keymap_opts)
 
 end
 
+local servers = {
+  -- clangd = {},
+  -- gopls = {},
+  -- pyright = {},
+  rust_analyzer = {},
+  -- tsserver = {},
+  -- html = { filetypes = { 'html', 'twig', 'hbs'} },
+
+  lua_ls = {
+    Lua = {
+      workspace = { checkThirdParty = false },
+      telemetry = { enable = false },
+    },
+  },
+}
+
+-- nvim-cmp supports additional completion capabilities, so broadcast that to servers
+local capabilities = vim.lsp.protocol.make_client_capabilities()
+capabilities = require('cmp_nvim_lsp').default_capabilities(capabilities)
+
+-- Ensure the servers above are installed
+local mason_lspconfig = require 'mason-lspconfig'
+
+mason_lspconfig.setup {
+  ensure_installed = vim.tbl_keys(servers),
+}
+
+mason_lspconfig.setup_handlers {
+  function(server_name)
+    require('lspconfig')[server_name].setup {
+      capabilities = capabilities,
+      on_attach = on_attach,
+      settings = servers[server_name],
+      filetypes = (servers[server_name] or {}).filetypes,
+    }
+  end
+}
+
 local opts = {
   tools = { 
-
-    -- how to execute terminal commands
-    -- options right now: termopen / quickfix / toggleterm / vimux
-    -- executor = require("rust-tools.executors").termopen,
-
-    -- automatically call RustReloadWorkspace when writing to a Cargo.toml file.
     reload_workspace_from_cargo_toml = true,
 
     runables = {
@@ -118,15 +220,10 @@ local opts = {
 
 require('rust-tools').setup(opts)
 
--- nvim-cmp supports additional completion capabilities, so broadcast that to servers
-local capabilities = vim.lsp.protocol.make_client_capabilities()
-capabilities = require('cmp_nvim_lsp').default_capabilities(capabilities)
-
 -- [[ Configure nvim-cmp ]]
 -- See `:help cmp`
 local cmp = require('cmp')
 local luasnip = require('luasnip')
-
 require('luasnip.loaders.from_vscode').lazy_load()
 luasnip.config.setup {}
 

@@ -15,46 +15,65 @@ end
 vim.opt.rtp:prepend(lazypath)
 
 require('lazy').setup({
-  'neovim/nvim-lspconfig',
-  -- Autocompletion
-  'hrsh7th/nvim-cmp',
-  -- Snippet Engine & its associated nvim-cmp source
-  'L3MON4D3/LuaSnip',
-  'saadparwaiz1/cmp_luasnip',
 
   {
-    "j-hui/fidget.nvim",
-    tag = "legacy",
-    event = "LspAttach",
-    opts = { },
-  },
-  -- cmp LSP completion
-  "hrsh7th/cmp-nvim-lsp",
-  -- cmp Snippet completion
-  "hrsh7th/cmp-vsnip",
+    -- LSP Configuration & Plugins
+    'neovim/nvim-lspconfig',
+    dependencies = {
+      -- Automatically install LSPs to stdpath for neovim
+      { 'williamboman/mason.nvim', config = true },
+      'williamboman/mason-lspconfig.nvim',
 
-  -- cmp Path completion
-  "hrsh7th/cmp-path",
-  "hrsh7th/cmp-buffer",
-  -- -- Adds a number of user-friendly snippets
-  -- 'rafamadriz/friendly-snippets',
+      -- Useful status updates for LSP
+      -- NOTE: `opts = {}` is the same as calling `require('fidget').setup({})`
+      { 
+        'j-hui/fidget.nvim',
+        tag = 'legacy', 
+        event = "LspAttach",
+        opts = {} 
+      },
+
+      -- Additional lua configuration, makes nvim stuff amazing!
+      'folke/neodev.nvim',
+    },
+  },
+{
+    -- Autocompletion
+    'hrsh7th/nvim-cmp',
+    dependencies = {
+      -- Snippet Engine & its associated nvim-cmp source
+      'L3MON4D3/LuaSnip',
+      'saadparwaiz1/cmp_luasnip',
+
+      -- Adds LSP completion capabilities
+      'hrsh7th/cmp-nvim-lsp',
+      -- cmp Snippet completion
+      "hrsh7th/cmp-vsnip",
+
+      -- Adds a number of user-friendly snippets
+      'rafamadriz/friendly-snippets',
+
+      -- cmp Path completion
+      "hrsh7th/cmp-path",
+      "hrsh7th/cmp-buffer",
+
+      -- Adds a number of user-friendly snippets
+      'rafamadriz/friendly-snippets',
+    },
+  },
+  {
+    -- Highlight, edit, and navigate code
+    'nvim-treesitter/nvim-treesitter',
+    dependencies = {
+      'nvim-treesitter/nvim-treesitter-textobjects',
+    },
+    build = ':TSUpdate',
+  },
+
   -- See hrsh7th other plugins for more great completion sources!
-  -- Snippet engine
-  'hrsh7th/vim-vsnip',
   -- Adds extra functionality over rust analyzer
   'simrat39/rust-tools.nvim',
-  -- {
-  --   'nvimdev/lspsaga.nvim',
-  --   config = function()
-  --     require('lspsaga').setup({})
-  --   end,
-  --   dependencies = {
-  --     'nvim-treesitter/nvim-treesitter', -- optional
-  --     'nvim-tree/nvim-web-devicons',     -- optional
-  --   }
-  -- },
-  --
-  { "folke/neodev.nvim", opts = {} },
+
   { import = 'custom.plugins' },
 }, {})
 
